@@ -72,7 +72,7 @@ html.lenis,.lenis.lenis-smooth{scroll-behavior:auto!important}
 .explore-card .card-live img{position:absolute;left:0;top:0;width:100%;border-radius:0;transition:none;z-index:auto}
 .explore-card .card-live .live-pan{height:auto;inset:auto 0 auto 0;object-fit:fill}
 .explore-card .card-live .live-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:top center}
-.explore-card .card-live::after{content:'';position:absolute;inset:0;z-index:2}
+.explore-card .card-live .live-video-src{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1}
 .explore-card .card-live:has(video){background:transparent}
 /* Cycle Breaker's poster is now its dark home screen */
 .explore-card.cb{background:#0b1121}
@@ -127,7 +127,7 @@ html.lenis,.lenis.lenis-smooth{scroll-behavior:auto!important}
 
 <section class="intro section-pad" id="intro"><div class="container"><div class="section-kicker mono reveal">The studio</div><div class="intro-grid"><div class="mono reveal">Built with purpose.<br>Designed to be different.</div><div class="intro-right reveal"><h2>Technology should <span>feel extraordinary.</span></h2><p>MistLab is a software studio for people with ideas worth building. We combine sharp thinking, memorable design, and meticulous engineering to create digital experiences with lasting impact.</p><a class="small-arrow" href="#about">Get to know us <span>↗</span></a></div></div></div></section>
 <section class="work" id="work"><div class="container"><div class="section-kicker mono reveal">Selected work</div><div class="work-heading reveal"><h2 class="section-title">Made to make<br>an <em class="serif grad">impression.</em></h2><p>Real products, live today. <span class="hint-hover">Hover a card to watch the site, click to visit it.</span><span class="hint-touch">Swipe through, then tap a card to visit the site.</span></p></div><div class="project-grid reveal"><div class="explore-strip">
-<div class="explore-item"><article class="explore-card cb"><img src="images/cb-card.webp" alt="Cycle Breaker home screen"><div class="card-live" aria-hidden="true"><video class="live-video" muted playsinline preload="none" disablepictureinpicture disableremoteplayback src="images/cb-video.mp4"></video></div><div class="card-overlay"><span class="card-visit">cyclebreaker.net <span aria-hidden="true">↗</span></span></div><a class="card-link" href="https://cyclebreaker.net" target="_blank" rel="noopener" aria-label="Visit cyclebreaker.net (opens in a new tab)"></a></article></div>
+<div class="explore-item"><article class="explore-card cb"><img src="images/cb-card.webp" alt="Cycle Breaker home screen"><div class="card-live" aria-hidden="true"><video class="live-video-src" muted playsinline preload="none" disablepictureinpicture disableremoteplayback src="images/cb-video.mp4"></video><canvas class="live-video live-canvas"></canvas></div><div class="card-overlay"><span class="card-visit">cyclebreaker.net <span aria-hidden="true">↗</span></span></div><a class="card-link" href="https://cyclebreaker.net" target="_blank" rel="noopener" aria-label="Visit cyclebreaker.net (opens in a new tab)"></a></article></div>
 <div class="explore-item"><article class="explore-card kh"><img src="images/image-2.webp" loading="lazy" alt="Khutba mosque concept artwork"><div class="card-live" aria-hidden="true"><img class="live-pan" src="images/kh-live.webp" alt=""></div><div class="card-overlay"><span class="card-visit">khutba.net <span aria-hidden="true">↗</span></span></div><a class="card-link" href="https://khutba.net" target="_blank" rel="noopener" aria-label="Visit khutba.net (opens in a new tab)"></a></article></div>
 <div class="explore-item is-soon"><article class="explore-card nk"><img src="images/image-3.webp" loading="lazy" alt="NikahNet ring concept artwork"></article></div>
 <div class="explore-item"><article class="explore-card ft"><img src="images/image-4.webp" loading="lazy" alt="FITRA Gym logo above a pair of dumbbells"><div class="card-live" aria-hidden="true"><img class="live-pan" src="images/ft-live.webp" alt=""></div><div class="card-overlay"><span class="card-visit">fitragym.ca <span aria-hidden="true">↗</span></span></div><a class="card-link" href="https://fitragym.ca" target="_blank" rel="noopener" aria-label="Visit fitragym.ca (opens in a new tab)"></a></article></div>
@@ -784,21 +784,36 @@ document.getElementById('year').textContent=new Date().getFullYear();document.ge
       };
       pan.complete ? run() : pan.addEventListener('load', run, { once: true });
     }
-    const vid = live.querySelector('.live-video');
-    if (vid) {
-      // A scroll recording of the real site, played from the start on every hover.
+    const vid = live.querySelector('.live-video-src');
+    const canvas = live.querySelector('.live-canvas');
+    if (vid && canvas) {
+      const ctx = canvas.getContext('2d');
       vid.currentTime = 0;
       vid.play().catch(() => {});
+      const draw = () => {
+        if (!item.classList.contains('is-live')) return;
+        if (vid.videoWidth && vid.videoHeight) {
+          if (canvas.width !== vid.videoWidth || canvas.height !== vid.videoHeight) {
+            canvas.width = vid.videoWidth;
+            canvas.height = vid.videoHeight;
+          }
+          ctx.drawImage(vid, 0, 0);
+        }
+        requestAnimationFrame(draw);
+      };
+      requestAnimationFrame(draw);
+    } else if (!canvas) {
+      const vidEl = live.querySelector('.live-video');
+      if (vidEl) { vidEl.currentTime = 0; vidEl.play().catch(() => {}); }
     }
   }
   function stop(item) {
     item.classList.remove('is-live');
     const live = item.querySelector('.card-live');
-    // Let the fade-out finish before resetting to the first frame.
     setTimeout(() => {
       if (item.classList.contains('is-live')) return;
       live.getAnimations({ subtree: true }).forEach(a => a.cancel());
-      const vid = live.querySelector('.live-video');
+      const vid = live.querySelector('.live-video-src') || live.querySelector('.live-video');
       if (vid) { vid.pause(); vid.currentTime = 0; }
     }, 500);
   }
